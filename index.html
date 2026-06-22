@@ -2,33 +2,33 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Isaiah Music Reviews</title>
+<title>Isaiah Music App</title>
 
 <style>
 body {
   margin: 0;
   font-family: Arial;
-  background: #111;
+  background: #0f0f0f;
   color: white;
   text-align: center;
 }
 
 header {
   background: #d60000;
-  padding: 20px;
-  font-size: 28px;
+  padding: 18px;
+  font-size: 24px;
   font-weight: bold;
 }
 
 .container {
-  padding: 40px;
+  padding: 20px;
 }
 
 input, button {
-  width: 80%;
+  width: 85%;
   max-width: 400px;
   padding: 12px;
-  margin: 10px;
+  margin: 8px;
   border-radius: 6px;
   border: none;
 }
@@ -41,60 +41,106 @@ button {
 }
 
 .song {
-  background: #222;
+  background: #1f1f1f;
   margin: 10px auto;
   padding: 10px;
   max-width: 500px;
   border-radius: 8px;
+  text-align: left;
 }
 </style>
 </head>
 
 <body>
 
-<header>
-Isaiah Music Reviews
-</header>
+<header>Isaiah Music App</header>
 
 <div class="container">
 
-<h2>Submit Your Song</h2>
+<h3>Login</h3>
+<input id="email" placeholder="email">
+<input id="password" placeholder="password" type="password">
+<button onclick="signup()">Sign Up</button>
+<button onclick="login()">Login</button>
 
-<input type="text" id="name" placeholder="Your Name">
+<hr>
 
+<h3>Upload Song</h3>
+<input id="songName" placeholder="Song Name">
 <input type="file" id="file">
-
 <button onclick="uploadSong()">Upload</button>
 
-<h2>Submissions</h2>
-<div id="list"></div>
+<h3>Feed</h3>
+<div id="feed"></div>
 
 </div>
 
 <script type="module">
-// Firebase setup
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-storage.js";
-import { getFirestore, addDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+import { 
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-storage.js";
+
+import {
+  getFirestore,
+  addDoc,
+  collection,
+  query,
+  orderBy,
+  getDocs
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
+  apiKey: "YOUR_KEY",
   authDomain: "YOUR_PROJECT.firebaseapp.com",
   projectId: "YOUR_PROJECT",
   storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_ID",
   appId: "YOUR_APP_ID"
 };
 
 const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 const storage = getStorage(app);
 const db = getFirestore(app);
 
+let currentUser = null;
+
+window.signup = async function () {
+  const email = emailInput().value;
+  const password = passInput().value;
+  await createUserWithEmailAndPassword(auth, email, password);
+  alert("Account created");
+};
+
+window.login = async function () {
+  const email = emailInput().value;
+  const password = passInput().value;
+  await signInWithEmailAndPassword(auth, email, password);
+  alert("Logged in");
+};
+
+onAuthStateChanged(auth, (user) => {
+  currentUser = user;
+  if (user) loadSongs();
+});
+
 window.uploadSong = async function () {
-  const name = document.getElementById("name").value;
+  if (!currentUser) return alert("Login first");
+
+  const name = document.getElementById("songName").value;
   const file = document.getElementById("file").files[0];
 
-  if (!file) return alert("Pick a file first");
+  if (!file) return alert("Pick a file");
 
   const storageRef = ref(storage, "songs/" + file.name);
 
@@ -102,8 +148,10 @@ window.uploadSong = async function () {
   const url = await getDownloadURL(storageRef);
 
   await addDoc(collection(db, "songs"), {
-    name: name,
-    url: url,
+    name,
+    url,
+    userId: currentUser.uid,
+    status: "pending",
     time: Date.now()
   });
 
@@ -112,24 +160,29 @@ window.uploadSong = async function () {
 };
 
 async function loadSongs() {
-  const list = document.getElementById("list");
-  list.innerHTML = "";
+  const feed = document.getElementById("feed");
+  feed.innerHTML = "";
 
-  const querySnapshot = await getDocs(collection(db, "songs"));
+  const q = query(collection(db, "songs"), orderBy("time", "desc"));
+  const snap = await getDocs(q);
 
-  querySnapshot.forEach((doc) => {
-    const data = doc.data();
+  snap.forEach(doc => {
+    const d = doc.data();
 
-    list.innerHTML += `
+    if (d.status !== "approved") return;
+
+    feed.innerHTML += `
       <div class="song">
-        <p><b>${data.name}</b></p>
-        <audio controls src="${data.url}"></audio>
+        <p><b>${d.name}</b></p>
+        <audio controls src="${d.url}"></audio>
       </div>
     `;
   });
 }
 
-loadSongs();
+function emailInput(){ return document.getElementById("email"); }
+function passInput(){ return document.getElementById("password"); }
+
 </script>
 
 </body>
