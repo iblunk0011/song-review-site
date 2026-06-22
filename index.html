@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Isaiah Music App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Isaiah Music Reviews</title>
 
 <style>
 body {
@@ -25,7 +26,7 @@ header {
 }
 
 input, button {
-  width: 85%;
+  width: 90%;
   max-width: 400px;
   padding: 12px;
   margin: 8px;
@@ -53,136 +54,67 @@ button {
 
 <body>
 
-<header>Isaiah Music App</header>
+<header>Isaiah Music Reviews</header>
 
 <div class="container">
 
-<h3>Login</h3>
-<input id="email" placeholder="email">
-<input id="password" placeholder="password" type="password">
-<button onclick="signup()">Sign Up</button>
-<button onclick="login()">Login</button>
+<h3>Submit Your Song</h3>
 
-<hr>
-
-<h3>Upload Song</h3>
-<input id="songName" placeholder="Song Name">
+<input id="name" placeholder="Your Name">
 <input type="file" id="file">
-<button onclick="uploadSong()">Upload</button>
 
-<h3>Feed</h3>
-<div id="feed"></div>
+<button onclick="uploadSong()">Upload Song</button>
+
+<h3>Submissions</h3>
+<div id="list"></div>
 
 </div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-import { 
-  getAuth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+<script>
+let songs = JSON.parse(localStorage.getItem("songs")) || [];
 
-import {
-  getStorage,
-  ref,
-  uploadBytes,
-  getDownloadURL
-} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-storage.js";
-
-import {
-  getFirestore,
-  addDoc,
-  collection,
-  query,
-  orderBy,
-  getDocs
-} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "YOUR_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  appId: "YOUR_APP_ID"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const storage = getStorage(app);
-const db = getFirestore(app);
-
-let currentUser = null;
-
-window.signup = async function () {
-  const email = emailInput().value;
-  const password = passInput().value;
-  await createUserWithEmailAndPassword(auth, email, password);
-  alert("Account created");
-};
-
-window.login = async function () {
-  const email = emailInput().value;
-  const password = passInput().value;
-  await signInWithEmailAndPassword(auth, email, password);
-  alert("Logged in");
-};
-
-onAuthStateChanged(auth, (user) => {
-  currentUser = user;
-  if (user) loadSongs();
-});
-
-window.uploadSong = async function () {
-  if (!currentUser) return alert("Login first");
-
-  const name = document.getElementById("songName").value;
+function uploadSong() {
+  const name = document.getElementById("name").value;
   const file = document.getElementById("file").files[0];
 
-  if (!file) return alert("Pick a file");
+  if (!file) {
+    alert("Pick a file first");
+    return;
+  }
 
-  const storageRef = ref(storage, "songs/" + file.name);
+  const reader = new FileReader();
 
-  await uploadBytes(storageRef, file);
-  const url = await getDownloadURL(storageRef);
+  reader.onload = function(e) {
+    const songData = {
+      name: name || "Unknown",
+      audio: e.target.result
+    };
 
-  await addDoc(collection(db, "songs"), {
-    name,
-    url,
-    userId: currentUser.uid,
-    status: "pending",
-    time: Date.now()
-  });
+    songs.push(songData);
+    localStorage.setItem("songs", JSON.stringify(songs));
 
-  alert("Uploaded!");
-  loadSongs();
-};
+    loadSongs();
+    alert("Uploaded!");
+  };
 
-async function loadSongs() {
-  const feed = document.getElementById("feed");
-  feed.innerHTML = "";
+  reader.readAsDataURL(file);
+}
 
-  const q = query(collection(db, "songs"), orderBy("time", "desc"));
-  const snap = await getDocs(q);
+function loadSongs() {
+  const list = document.getElementById("list");
+  list.innerHTML = "";
 
-  snap.forEach(doc => {
-    const d = doc.data();
-
-    if (d.status !== "approved") return;
-
-    feed.innerHTML += `
+  songs.forEach(song => {
+    list.innerHTML += `
       <div class="song">
-        <p><b>${d.name}</b></p>
-        <audio controls src="${d.url}"></audio>
+        <p><b>${song.name}</b></p>
+        <audio controls src="${song.audio}"></audio>
       </div>
     `;
   });
 }
 
-function emailInput(){ return document.getElementById("email"); }
-function passInput(){ return document.getElementById("password"); }
-
+loadSongs();
 </script>
 
 </body>
