@@ -1,83 +1,136 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Isaiah Live Reviews</title>
+<title>Isaiah Music Reviews</title>
 
 <style>
-body{
-margin:0;
-font-family:Arial,sans-serif;
-background:#111;
-color:white;
-text-align:center;
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #111;
+  color: white;
+  text-align: center;
 }
 
-header{
-background:#d60000;
-padding:20px;
-font-size:30px;
-font-weight:bold;
+header {
+  background: #d60000;
+  padding: 20px;
+  font-size: 28px;
+  font-weight: bold;
 }
 
-.hero{
-padding:80px 20px;
+.container {
+  padding: 40px;
 }
 
-.hero h1{
-font-size:42px;
+input, button {
+  width: 80%;
+  max-width: 400px;
+  padding: 12px;
+  margin: 10px;
+  border-radius: 6px;
+  border: none;
 }
 
-.hero p{
-font-size:20px;
-max-width:600px;
-margin:auto;
+button {
+  background: #d60000;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
 }
 
-.button{
-display:inline-block;
-margin-top:30px;
-padding:15px 35px;
-background:white;
-color:#d60000;
-text-decoration:none;
-font-weight:bold;
-border-radius:8px;
-}
-
-footer{
-margin-top:80px;
-padding:20px;
-background:#1d1d1d;
+.song {
+  background: #222;
+  margin: 10px auto;
+  padding: 10px;
+  max-width: 500px;
+  border-radius: 8px;
 }
 </style>
-
 </head>
 
 <body>
 
 <header>
-Isaiah Live Reviews
+Isaiah Music Reviews
 </header>
 
-<section class="hero">
+<div class="container">
 
-<h1>Get Your Song Reviewed Live!</h1>
+<h2>Submit Your Song</h2>
 
-<p>
-Submit your music and watch me react to it live on TikTok.
-</p>
+<input type="text" id="name" placeholder="Your Name">
 
-<a class="button" href="#">
-Submit Your Song
-</a>
+<input type="file" id="file">
 
-</section>
+<button onclick="uploadSong()">Upload</button>
 
-<footer>
-© 2026 Isaiah Live Reviews
-</footer>
+<h2>Submissions</h2>
+<div id="list"></div>
+
+</div>
+
+<script type="module">
+// Firebase setup
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-storage.js";
+import { getFirestore, addDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_ID",
+  appId: "YOUR_APP_ID"
+};
+
+const app = initializeApp(firebaseConfig);
+const storage = getStorage(app);
+const db = getFirestore(app);
+
+window.uploadSong = async function () {
+  const name = document.getElementById("name").value;
+  const file = document.getElementById("file").files[0];
+
+  if (!file) return alert("Pick a file first");
+
+  const storageRef = ref(storage, "songs/" + file.name);
+
+  await uploadBytes(storageRef, file);
+  const url = await getDownloadURL(storageRef);
+
+  await addDoc(collection(db, "songs"), {
+    name: name,
+    url: url,
+    time: Date.now()
+  });
+
+  alert("Uploaded!");
+  loadSongs();
+};
+
+async function loadSongs() {
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  const querySnapshot = await getDocs(collection(db, "songs"));
+
+  querySnapshot.forEach((doc) => {
+    const data = doc.data();
+
+    list.innerHTML += `
+      <div class="song">
+        <p><b>${data.name}</b></p>
+        <audio controls src="${data.url}"></audio>
+      </div>
+    `;
+  });
+}
+
+loadSongs();
+</script>
 
 </body>
 </html>
